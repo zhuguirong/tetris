@@ -15,14 +15,14 @@ TFT_eSPI tft;
 #define GRID_WIDTH 10
 #define GRID_HEIGHT 22
 #define BLOCK_SIZE 11
-#define BOARD_X (21 + 2 * BLOCK_SIZE)  // 修复坐标计算
+#define BOARD_X 0  // 恢复原始坐标
 #define BOARD_Y 5
 
 // UI参数
-#define SCORE_FONT_SIZE 1
-#define GAMEOVER_TITLE_FONT 2
-#define GAMEOVER_SCORE_FONT 2
-#define GAMEOVER_HINT_FONT 1
+#define SCORE_FONT_SIZE 2
+#define GAMEOVER_TITLE_FONT 1    // 使用大标题字体
+#define GAMEOVER_SCORE_FONT 1    // 中号得分字体
+#define GAMEOVER_HINT_FONT 1     // 小号提示字体
 #define SCORE_X 160
 #define SCORE_Y 3
 #define NEXT_BLOCK_X 160
@@ -31,6 +31,14 @@ TFT_eSPI tft;
 #define GAMEOVER_Y_TITLE 80
 #define GAMEOVER_Y_SCORE 115
 #define GAMEOVER_Y_HINT 145
+// 首先在宏定义区域调整字体参数（新增以下定义）
+#define GAMEOVER_BG_COLOR TFT_NAVY  // 弹窗背景颜色
+#define TEXT_SHADOW_COLOR 0x18A5    // 文字阴影颜色（深灰色）
+#define TFT_GOLD      0xFEA0  // 金色
+#define TFT_NAVY      0x000A  // 海军蓝
+#define TEXT_SHADOW   0x3186  // 阴影颜色
+
+
 
 // 方块形状定义
 const uint16_t TETROMINOES[7][4] = {
@@ -97,17 +105,14 @@ void loop() {
   static unsigned long lastRotateTime = 0;
   const int debounceDelay = 200;
 
-  // 游戏运行状态处理移动
   if (!game.gameOver) {
     if (digitalRead(DPAD_LEFT) == LOW)  movePiece(-1);
     if (digitalRead(DPAD_RIGHT) == LOW) movePiece(1);
     if (digitalRead(DPAD_DOWN) == LOW)  movePiece(0, 1);
   }
-
-  // 重启按钮
+  
   if (digitalRead(BUTTON_B) == LOW) newGame();
 
-  // 旋转按钮带状态检查
   if (digitalRead(DPAD_PRESS) == LOW && 
      (millis() - lastRotateTime) > debounceDelay &&
      !game.gameOver) {
@@ -115,7 +120,6 @@ void loop() {
     lastRotateTime = millis();
   }
 
-  // 自动下落逻辑
   if (!game.gameOver && millis() - lastUpdate > 500) {
     if (!movePiece(0, 1)) {
       lockPiece();
@@ -130,13 +134,12 @@ void loop() {
 void newGame() {
   tft.fillScreen(TFT_BLACK);
   
-  // 绘制游戏边框
+  // 绘制边框
   tft.drawFastHLine(0, 0, tft.width(), TFT_WHITE);
   tft.drawFastHLine(0, tft.height()-1, tft.width(), TFT_WHITE);
   tft.drawFastVLine(0, 0, tft.height(), TFT_WHITE);
   tft.drawFastVLine(tft.width()-1, 0, tft.height(), TFT_WHITE);
 
-  // 初始化游戏状态
   memset(game.grid, 0, sizeof(game.grid));
   game.currentPiece = random(7);
   game.nextPiece = random(7);
@@ -306,35 +309,72 @@ void drawNextPiece() {
   }
 }
 
+// 屏幕右上角展示分数（优化版）
 void updateScoreDisplay() {
-  tft.fillRect(SCORE_X, SCORE_Y, 80, 20, TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setTextSize(SCORE_FONT_SIZE);
+  // 清空分数区域（扩大清除范围防止残影）
+  tft.fillRect(160, 5, tft.width()-165, 20, TFT_BLACK);
   
-  tft.setCursor(SCORE_X, SCORE_Y);
-  tft.print("SCORE:");
-  tft.setCursor(SCORE_X + 40, SCORE_Y);
-  tft.print(game.score);
+  // 设置文本样式
+  tft.setTextColor(TFT_WHITE);    // 白色文字
+  tft.setTextSize(1);             // 字体大小设为2（更清晰）
+  tft.setTextFont(1);             // 标准字体
+
+  // 绘制"Score:"文字（增加冒号后的空格）
+  tft.setCursor(160, 5);
+  tft.print("Score: ");
+  
+  // 绘制分数数值（右对齐优化）
+  String scoreText = String(game.score);
+  int textWidth = scoreText.length() * 12; // 估算字符宽度
+  tft.setCursor(240 - textWidth, 5);       // 240=屏幕宽度-右边距
+  tft.print(scoreText);
 }
 
+// 优化后的游戏结束界面绘制函数
 void drawGameOver() {
-  // 全屏半透明遮  tft.fillRect(0, 0, tft.width(), tft.height(), 0x10A5);
+   // 全屏半透明遮罩
+  tft.fillRect(0, 0, tft.width(), tft.height(), 0x0821);
+
+  // 弹窗背景（使用新定义的NAVY颜色）
+  const int popupWidth = 200;
+  const int popupHeight = 120;
+  int popupX = (tft.width() - popupWidth)/2;
+  int popupY = (tft.height() - popupHeight)/2 - 10;
   
-  // 绘制弹窗
-  tft.fillRoundRect(40, 60, 240, 120, 10, TFT_RED);
-  
-  // 文字内容
-  tft.setTextColor(TFT_WHITE);
+  tft.fillRoundRect(popupX, popupY, popupWidth, popupHeight, 8, TFT_NAVY);
+  tft.drawRoundRect(popupX, popupY, popupWidth, popupHeight, 8, TFT_WHITE);
+
+  // 标题文字
+  int textY = popupY + 15;
   tft.setTextSize(GAMEOVER_TITLE_FONT);
-  tft.drawCentreString("GAME OVER", GAMEOVER_X_CENTER, GAMEOVER_Y_TITLE, GAMEOVER_TITLE_FONT);
-  
-  tft.setTextSize(GAMEOVER_SCORE_FONT);
-  tft.drawCentreString("SCORE", GAMEOVER_X_CENTER, GAMEOVER_Y_SCORE - 15, GAMEOVER_SCORE_FONT);
-  
-  tft.setTextColor(TFT_YELLOW);
-  tft.drawCentreString(String(game.score), GAMEOVER_X_CENTER, GAMEOVER_Y_SCORE, GAMEOVER_SCORE_FONT);
-  
+  tft.setTextColor(TEXT_SHADOW);
+  tft.drawCentreString("GAME OVER", tft.width()/2 + 2, textY + 2, GAMEOVER_TITLE_FONT);
+  tft.setTextColor(TFT_RED);
+  tft.drawCentreString("GAME OVER", tft.width()/2, textY, GAMEOVER_TITLE_FONT);
+
+  // 得分显示（使用GOLD颜色）
+  textY += tft.fontHeight(GAMEOVER_TITLE_FONT) + 10;
   tft.setTextColor(TFT_WHITE);
-  tft.setTextSize(GAMEOVER_HINT_FONT);
-  tft.drawCentreString("Press B to restart", GAMEOVER_X_CENTER, GAMEOVER_Y_HINT, GAMEOVER_HINT_FONT);
+  tft.setTextSize(GAMEOVER_SCORE_FONT);
+  tft.drawCentreString("SCORE:", tft.width()/2, textY, GAMEOVER_SCORE_FONT);
+  
+  textY += tft.fontHeight(GAMEOVER_SCORE_FONT) + 5;
+  tft.setTextColor(TFT_GOLD);  // 这里使用新定义的金色
+  tft.drawCentreString(String(game.score), tft.width()/2, textY, GAMEOVER_SCORE_FONT);
+  // 闪烁提示（优化动画逻辑）
+  static uint32_t lastBlink = 0;
+  static bool blinkState = false;
+  if (millis() - lastBlink > 500) {
+    blinkState = !blinkState;
+    lastBlink = millis();
+    
+    // 清除提示区域
+    tft.fillRect(popupX, popupY + popupHeight - 25, popupWidth, 20, GAMEOVER_BG_COLOR);
+    
+    if (blinkState) {
+      tft.setTextColor(TFT_WHITE);
+      tft.setTextSize(GAMEOVER_HINT_FONT);
+      tft.drawCentreString("Press B to Restart", tft.width()/2, popupY + popupHeight - 20, GAMEOVER_HINT_FONT);
+    }
+  }
 }
