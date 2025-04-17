@@ -3,11 +3,8 @@
  * @brief 基于WIO Terminal的俄罗斯方块游戏
  * @version 2.2
  * @note 硬件配置：
- *       - 主控：ATSAMD51 @ 120MHz
  *       - 显示屏：2.4寸TFT (320x240)
  *       - 输入设备：五向摇杆+功能按键
- * @copyright Copyright (c) 2023
- */
 
 #include <TFT_eSPI.h>  // 包含TFT库
 TFT_eSPI tft;          // 实例化TFT对象
