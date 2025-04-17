@@ -1,8 +1,6 @@
 /**
  * @file Tetris_Game.ino
  * @brief 基于WIO Terminal的俄罗斯方块游戏
- * @author YourName
- * @date 2023-08-20
  * @version 2.2
  * @note 硬件配置：
  *       - 主控：ATSAMD51 @ 120MHz
